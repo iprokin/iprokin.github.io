@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title></title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <link rel="stylesheet" href="/css.css">
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<div id="menu">
+<a href="/index.html">Home</a> &nbsp; <a href="/CV.html">CV</a> &nbsp; <a href="/research.html">Research</a> &nbsp; <a href="/software.html">Software</a>
+<hr>
+</div>
+<h1 id="simple-backup-with-rsync">Simple backup with rsync</h1>
+<p><a href="https://github.com/iprokin/time-machinery-sh" class="uri">https://github.com/iprokin/time-machinery-sh</a></p>
+<p>To fulfill my backup needs, I use two simple bash scripts.</p>
+<ul>
+<li><p><a href="https://github.com/iprokin/time-machinery-sh/blob/master/rsnapshot.sh">rsnapshot.sh</a> which periodically takes snapshots of a specified folder using rsync and hardlinks. You could then browse the past states of your folder with your filebrowser.</p></li>
+<li><p><a href="https://github.com/iprokin/time-machinery-sh/blob/master/teletime.sh">teletime.sh</a> which allows you to run programs so they see the past versions of files instead of current ones.</p></li>
+</ul>
+<p>These scripts are very helpful when I do computational experiments with ipython notebook. Without the risk of losing something, I could modify my files as I can always go back in time with this setup.</p>
+</body>
+</html>

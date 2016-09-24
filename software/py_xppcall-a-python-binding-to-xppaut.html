@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title></title>
+  <style type="text/css">code{white-space: pre;}</style>
+  <style type="text/css">
+div.sourceCode { overflow-x: auto; }
+table.sourceCode, tr.sourceCode, td.lineNumbers, td.sourceCode {
+  margin: 0; padding: 0; vertical-align: baseline; border: none; }
+table.sourceCode { width: 100%; line-height: 100%; background-color: #f8f8f8; }
+td.lineNumbers { text-align: right; padding-right: 4px; padding-left: 4px; color: #aaaaaa; border-right: 1px solid #aaaaaa; }
+td.sourceCode { padding-left: 5px; }
+pre, code { background-color: #f8f8f8; }
+code > span.kw { color: #204a87; font-weight: bold; } /* Keyword */
+code > span.dt { color: #204a87; } /* DataType */
+code > span.dv { color: #0000cf; } /* DecVal */
+code > span.bn { color: #0000cf; } /* BaseN */
+code > span.fl { color: #0000cf; } /* Float */
+code > span.ch { color: #4e9a06; } /* Char */
+code > span.st { color: #4e9a06; } /* String */
+code > span.co { color: #8f5902; font-style: italic; } /* Comment */
+code > span.ot { color: #8f5902; } /* Other */
+code > span.al { color: #ef2929; } /* Alert */
+code > span.fu { color: #000000; } /* Function */
+code > span.er { color: #a40000; font-weight: bold; } /* Error */
+code > span.wa { color: #8f5902; font-weight: bold; font-style: italic; } /* Warning */
+code > span.cn { color: #000000; } /* Constant */
+code > span.sc { color: #000000; } /* SpecialChar */
+code > span.vs { color: #4e9a06; } /* VerbatimString */
+code > span.ss { color: #4e9a06; } /* SpecialString */
+code > span.im { } /* Import */
+code > span.va { color: #000000; } /* Variable */
+code > span.cf { color: #204a87; font-weight: bold; } /* ControlFlow */
+code > span.op { color: #ce5c00; font-weight: bold; } /* Operator */
+code > span.pp { color: #8f5902; font-style: italic; } /* Preprocessor */
+code > span.ex { } /* Extension */
+code > span.at { color: #c4a000; } /* Attribute */
+code > span.do { color: #8f5902; font-weight: bold; font-style: italic; } /* Documentation */
+code > span.an { color: #8f5902; font-weight: bold; font-style: italic; } /* Annotation */
+code > span.cv { color: #8f5902; font-weight: bold; font-style: italic; } /* CommentVar */
+code > span.in { color: #8f5902; font-weight: bold; font-style: italic; } /* Information */
+  </style>
+  <link rel="stylesheet" href="/css.css">
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<div id="menu">
+<a href="/index.html">Home</a> &nbsp; <a href="/CV.html">CV</a> &nbsp; <a href="/research.html">Research</a> &nbsp; <a href="/software.html">Software</a>
+<hr>
+</div>
+<p>Source at GitHub: <a href="https://github.com/iprokin/Py_XPPCALL" class="uri">https://github.com/iprokin/Py_XPPCALL</a><br />
+<br />
+<a href="http://www.math.pitt.edu/~bard/xpp/xpp.html">XPPAUT</a> is a great software for the analysis of dynamical systems. Many mathematical models have been implemented with XPPAUT (*.ODE file format) [search for examples at <a href="http://senselab.med.yale.edu/modeldb/" class="uri">http://senselab.med.yale.edu/modeldb/</a>]. These implementations could be used to reproduce computational experiments and to quickly test ideas related to them. For instance, one could perform the sensitivity analysis of model’s parameters or parameters’ space searches. However, due to the graphical nature of XPPAUT, the batch modification of parameters of these models is problematic. </p>
+<p>Here I describe the solution for this problem using simple python module <strong>Py_XPPCALL</strong> that I have written to interface with XPPAUT. It allows you to batch-modify model’s parameters and returns corresponding solutions. An analogous software exists, <a href="https://github.com/jsnowacki/xppy" class="uri">https://github.com/jsnowacki/xppy</a>, however little documentation is available.</p>
+<p>Py_XPPCALL is easy to use and does not require installation. Simply put <strong>xppcall.py</strong> to your python path or current folder.</p>
+<h3 id="an-example-of-usage-with-hodgkin-huxley-neuron-model-for-numerical-optimization">An example of usage with Hodgkin-Huxley neuron model for numerical optimization</h3>
+<p>I extracted the ODE source code of Hodgkin-Huxley model  from the example at the website of XPPAUT <a href="http://www.math.pitt.edu/~bard/bardware/tut/newstyle.html#hh" class="uri">http://www.math.pitt.edu/~bard/bardware/tut/newstyle.html#hh</a>. I saved it as hh.ode. I put it to the same folder where I have xppcall.py and ran python from there. </p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="co">## Py_XPPCALL Example</span>
+
+<span class="co"># import some modules including Py_XPPCALL</span>
+<span class="im">import</span> matplotlib.pylab <span class="im">as</span> plt
+<span class="im">import</span> numpy <span class="im">as</span> np
+<span class="im">from</span> xppcall <span class="im">import</span> xpprun, read_pars_values_from_file
+
+<span class="co"># Let&#39;s check what are the parameters of the model</span>
+pars <span class="op">=</span> read_pars_values_from_file(<span class="st">&#39;hh.ode&#39;</span>)
+<span class="bu">print</span> pars</code></pre></div>
+<pre style="line-height:16.25px;color:rgb(0,0,0)"><code>Out[]: 
+
+    {&#39;c&#39;: &#39;1&#39;,
+     &#39;gk&#39;: &#39;36&#39;,
+     &#39;gl&#39;: &#39;.3&#39;,
+     &#39;gna&#39;: &#39;120&#39;,
+     &#39;i&#39;: &#39;0&#39;,
+     &#39;vk&#39;: &#39;-77&#39;,
+     &#39;vl&#39;: &#39;-54.4&#39;,
+     &#39;vna&#39;: &#39;50&#39;}</code></pre>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="co"># Note: XPPAUT is not case sensitive. In Py_XPPCALL, the names of parameters and variables were chosen to be in lower case.</span>
+
+<span class="co"># Let&#39;s plot solution for membrane potential with parameters specified in .ODE file</span>
+npa, vn <span class="op">=</span> xpprun(<span class="st">&#39;hh.ode&#39;</span>, clean_after<span class="op">=</span><span class="va">True</span>)
+plt.figure()
+plt.plot(npa[:,<span class="dv">0</span>], npa[:, <span class="dv">1</span><span class="op">+</span>vn.index(<span class="st">&#39;v&#39;</span>)])</code></pre></div>
+<pre style="line-height:16.25px;color:rgb(0,0,0)"><code>Out[]:</code></pre>
+<p><a href="py_xppcall-a-python-binding-to-xppaut/1.png"><img src="py_xppcall-a-python-binding-to-xppaut/1.png" /></a></p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="co"># Let&#39;s modify constant input current</span>
+npa, vn <span class="op">=</span> xpprun(<span class="st">&#39;hh.ode&#39;</span>, parameters<span class="op">=</span>{<span class="st">&#39;i&#39;</span>:<span class="fl">20.0</span>}, clean_after<span class="op">=</span><span class="va">True</span>)
+plt.figure()
+plt.plot(npa[:,<span class="dv">0</span>], npa[:, <span class="dv">1</span><span class="op">+</span>vn.index(<span class="st">&#39;v&#39;</span>)])</code></pre></div>
+<pre style="line-height:16.25px;color:rgb(0,0,0)"><code>Out[]:</code></pre>
+<p><a href="py_xppcall-a-python-binding-to-xppaut/2.png"><img src="py_xppcall-a-python-binding-to-xppaut/2.png" /></a></p>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="co"># Example of an optimization using fmin from SciPy</span>
+<span class="im">from</span> scipy.optimize <span class="im">import</span> fmin
+
+<span class="co"># define desired V graph</span>
+target_v <span class="op">=</span> <span class="op">-</span><span class="fl">80.0</span><span class="dv">+20</span><span class="op">*</span>npa[:,<span class="dv">0</span>]<span class="op">*</span>(np.sign(<span class="op">-</span>npa[:,<span class="dv">0</span>]<span class="op">+</span><span class="dv">4</span>)<span class="op">+</span><span class="dv">1</span>)
+plt.figure()
+plt.plot(npa[:,<span class="dv">0</span>], target_v)</code></pre></div>
+<pre style="line-height:16.25px;color:rgb(0,0,0)"><code>Out[]:</code></pre>
+<div class="sourceCode"><pre class="sourceCode python"><code class="sourceCode python"><span class="co"># define objective_func we want to minimize</span>
+<span class="kw">def</span> objective_func(x, target<span class="op">=</span>target_v):
+    <span class="cf">try</span>:
+        npa, vn <span class="op">=</span> xpprun(<span class="st">&#39;hh.ode&#39;</span>, parameters<span class="op">=</span>{<span class="st">&#39;i&#39;</span>:x[<span class="dv">0</span>]}, clean_after<span class="op">=</span><span class="va">True</span>)
+        computed <span class="op">=</span> npa[:, <span class="dv">1</span><span class="op">+</span>vn.index(<span class="st">&#39;v&#39;</span>)]
+        <span class="cf">return</span> np.mean( (computed<span class="op">-</span>target)<span class="op">**</span><span class="dv">2</span> )
+    <span class="cf">except</span>:
+        <span class="cf">return</span> <span class="fl">1e10</span> <span class="co"># return huge error if something went wrong</span>
+
+xopt <span class="op">=</span> fmin(objective_func, [<span class="fl">20.0</span>]) <span class="co"># find new parameters</span>
+npa, vn <span class="op">=</span> xpprun(<span class="st">&#39;hh.ode&#39;</span>, parameters<span class="op">=</span>{<span class="st">&#39;i&#39;</span>:xopt[<span class="dv">0</span>]}, clean_after<span class="op">=</span><span class="va">True</span>)
+plt.figure()
+plt.plot(npa[:,<span class="dv">0</span>], npa[:, <span class="dv">1</span><span class="op">+</span>vn.index(<span class="st">&#39;v&#39;</span>)], label<span class="op">=</span><span class="st">&#39;fit&#39;</span>)
+plt.plot(npa[:,<span class="dv">0</span>], target_v, label<span class="op">=</span><span class="st">&#39;target&#39;</span>)
+plt.legend()</code></pre></div>
+<pre style="line-height:16.25px;color:rgb(0,0,0)"><code>Out[]:</code></pre>
+<figure>
+<img src="py_xppcall-a-python-binding-to-xppaut/4.png" />
+</figure>
+<h3 id="congrats-we-got-a-pretty-good-fit.">Congrats! We got a pretty good fit.</h3>
+</body>
+</html>
