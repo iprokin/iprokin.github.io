@@ -63,7 +63,7 @@ My setup is<br />
 HOME_computer ⟶  intermediate_HOST ⟶  target_HOST<br />
 <br />
 To setup forwarding open terminal and run:</p>
-<div class="sourceCode"><pre class="sourceCode sh"><code class="sourceCode bash"><span class="kw">ssh</span> -L 3000:target_HOST:22 login_at_intermediate_HOST@intermediate_HOST -N</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode sh"><code class="sourceCode bash"><span class="fu">ssh</span> -L 3000:target_HOST:22 login_at_intermediate_HOST@intermediate_HOST -N</code></pre></div>
 <p>where<br />
 <strong>-L</strong> stands for port forwarding from target_HOST:22 to localhost:3000 (HOME_computer),<br />
 <strong>-N</strong> for not showing remote shell of login_at_intermediate_HOST@intermediate_HOST.<br />
@@ -72,24 +72,24 @@ You can put any available port instead of 3000.<br />
 <strong>Let it run.</strong> <br />
 <br />
 To use the tunnel, open <strong>another</strong> terminal and type:</p>
-<div class="sourceCode"><pre class="sourceCode sh"><code class="sourceCode bash"><span class="kw">ssh</span> -p 3000 login_at_target_HOST@localhost</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode sh"><code class="sourceCode bash"><span class="fu">ssh</span> -p 3000 login_at_target_HOST@localhost</code></pre></div>
 <hr />
 <h2 id="mounting-remote-folders-with-sshfs">Mounting remote folders with SSHFS</h2>
 <p>To mount remote folders, you could use <strong><a href="https://en.wikipedia.org/wiki/SSHFS">SSHFS</a></strong> (cross-platform, available for Windows, Linux and OS X).<br />
 After installing SSHFS, you could mount target_HOST’s user home folder with</p>
-<div class="sourceCode"><pre class="sourceCode sh"><code class="sourceCode bash"><span class="kw">sshfs</span> -p 3000 login_at_target_HOST@localhost: /tmp/ssh_mount</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode sh"><code class="sourceCode bash"><span class="ex">sshfs</span> -p 3000 login_at_target_HOST@localhost: /tmp/ssh_mount</code></pre></div>
 <p>I mounted it to the folder /tmp/ssh_mount, which I have created in advance with mkdir /tmp/ssh_mount.<br />
 <br />
 Alternatively, instead of home folder, you could use specified folder with:</p>
-<div class="sourceCode"><pre class="sourceCode sh"><code class="sourceCode bash"><span class="kw">sshfs</span> -p 3000 login_at_target_HOST@localhost:**Path/to/folder** /tmp/ssh_mount</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode sh"><code class="sourceCode bash"><span class="ex">sshfs</span> -p 3000 login_at_target_HOST@localhost:**Path/to/folder** /tmp/ssh_mount</code></pre></div>
 <p>Note, you could now use file backup/synchronization software like <a href="https://rsync.samba.org/">rsync</a> and <a href="http://www.cis.upenn.edu/~bcpierce/unison/">unison</a>.<br />
 </p>
 <hr />
 <h2 id="accessing-remote-ipythonjupyter-notebook-via-ssh">Accessing remote ipython/jupyter notebook via SSH</h2>
 <p>If you want to run and remotely access jupyter/ipython notebook on target_HOST, then, first, run it with</p>
-<div class="sourceCode"><pre class="sourceCode sh"><code class="sourceCode bash"><span class="kw">ipython</span> notebook –no-browser –port=8888</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode sh"><code class="sourceCode bash"><span class="ex">ipython</span> notebook –no-browser –port=8888</code></pre></div>
 <p>Second, to create another tunnel to access it, on your local machine run (<strong>your previously set up tunnel should be running</strong>):</p>
-<div class="sourceCode"><pre class="sourceCode sh"><code class="sourceCode bash"><span class="kw">ssh</span> -L 9999:localhost:8888 -p 3000 localhost -N</code></pre></div>
+<div class="sourceCode"><pre class="sourceCode sh"><code class="sourceCode bash"><span class="fu">ssh</span> -L 9999:localhost:8888 -p 3000 localhost -N</code></pre></div>
 <p><br />
 Finally, in your browser, you open<br />
 <strong><a href="http://localhost:9999" class="uri">http://localhost:9999</a></strong>,<br />
