@@ -8,6 +8,10 @@ body{
     padding:0 10px
 }
 
+big {
+    font-size: 200%;
+}
+
 h1,h2,h3{
     line-height:1.2
 }

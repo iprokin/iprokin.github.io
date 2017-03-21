@@ -99,7 +99,7 @@ plt.plot(npa[:,<span class="dv">0</span>], npa[:, <span class="dv">1</span><span
 <span class="im">from</span> scipy.optimize <span class="im">import</span> fmin
 
 <span class="co"># define desired V graph</span>
-target_v <span class="op">=</span> <span class="op">-</span><span class="fl">80.0</span><span class="dv">+20</span><span class="op">*</span>npa[:,<span class="dv">0</span>]<span class="op">*</span>(np.sign(<span class="op">-</span>npa[:,<span class="dv">0</span>]<span class="op">+</span><span class="dv">4</span>)<span class="op">+</span><span class="dv">1</span>)
+target_v <span class="op">=</span> <span class="op">-</span><span class="fl">80.0</span><span class="op">+</span><span class="dv">20</span><span class="op">*</span>npa[:,<span class="dv">0</span>]<span class="op">*</span>(np.sign(<span class="op">-</span>npa[:,<span class="dv">0</span>]<span class="op">+</span><span class="dv">4</span>)<span class="op">+</span><span class="dv">1</span>)
 plt.figure()
 plt.plot(npa[:,<span class="dv">0</span>], target_v)</code></pre></div>
 <pre style="line-height:16.25px;color:rgb(0,0,0)"><code>Out[]:</code></pre>
