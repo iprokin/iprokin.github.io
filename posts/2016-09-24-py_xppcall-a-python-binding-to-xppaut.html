@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Ilya Prokin's Blog - Py_XPPCALL':' a python binding to xppaut</title>
+        <link rel="stylesheet" href="../css/default.css" />
+        <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <link href="../css/prism.css" rel="stylesheet" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Ubuntu+Mono"> 
+    </head>
+    <body>
+        <script src="../scripts/prism.js"></script>
+        <header>
+            <nav>
+                <a href="../">Home</a>
+                <a href="../about.html">About</a>
+                <a href="../contact.html">Contact</a>
+                <a href="../archive.html">Blog Archive</a>
+                <a href="../research.html">Research</a>
+                <a href="../CV.html">CV</a>
+            </nav>
+        </header>
+
+        <main role="main">
+            <h1>Py_XPPCALL':' a python binding to xppaut</h1>
+            <article>
+    <section class="header">
+        Posted on September 24, 2016
+        
+            by Ilya
+        
+    </section>
+    <section>
+        <p>Source at GitHub: <a href="https://github.com/iprokin/Py_XPPCALL" class="uri">https://github.com/iprokin/Py_XPPCALL</a></p>
+<h1 id="introduction">Introduction</h1>
+<p><a href="http://www.math.pitt.edu/~bard/xpp/xpp.html">XPPAUT</a> is a great software for the analysis of dynamical systems. Many mathematical models implemented with XPPAUT (*.ODE file format) [search for examples at <a href="http://senselab.med.yale.edu/modeldb/" class="uri">http://senselab.med.yale.edu/modeldb/</a>]. These implementations could be used to reproduce computational experiments and quickly test ideas. For instance, one could perform sensitivity analysis of model parameters or search parameter space. However, due to the graphical nature of XPPAUT, a batch modification of model parameters is problematic.</p>
+<p>Here I describe the solution to this problem using a simple python module <strong>Py_XPPCALL</strong> that I have written to interface with XPPAUT. It allows you to batch-modify model parameters and returns corresponding solutions. A similar software exists <a href="https://github.com/jsnowacki/xppy" class="uri">https://github.com/jsnowacki/xppy</a>, however, little documentation is available.</p>
+<p>Py_XPPCALL is easy to use and it does not require installation. Simply put <code>xppcall.py</code> to your python path or current folder.</p>
+<h1 id="numerical-optimization-example-with-hodgkin-huxley-neuron-model">Numerical optimization example with Hodgkin-Huxley neuron model</h1>
+<p>I extracted the ODE source code of Hodgkin-Huxley model from the example at the website of XPPAUT <a href="http://www.math.pitt.edu/~bard/bardware/tut/newstyle.html#hh" class="uri">http://www.math.pitt.edu/~bard/bardware/tut/newstyle.html#hh</a>. I saved it as <code>hh.ode</code> and I put it to the same folder where I have <code>xppcall.py</code> and ran python from there. </p>
+<pre><code class="language-python">
+## Py_XPPCALL Example
+
+# import some modules including Py_XPPCALL
+import matplotlib.pylab as plt
+import numpy as np
+from xppcall import xpprun, read_pars_values_from_file
+
+# Let's check what are the parameters of the model
+pars = read_pars_values_from_file('hh.ode')
+print pars
+</code></pre>
+<pre><code>Out[]: 
+
+    {'c': '1',
+     'gk': '36',
+     'gl': '.3',
+     'gna': '120',
+     'i': '0',
+     'vk': '-77',
+     'vl': '-54.4',
+     'vna': '50'}</code></pre>
+<pre><code class="language-python">
+# Note: XPPAUT is not case sensitive. In Py_XPPCALL, the names of parameters and variables were chosen to be in lower case.
+
+# Let's plot solution for membrane potential with parameters specified in .ODE file
+npa, vn = xpprun('hh.ode', clean_after=True)
+plt.figure()
+plt.plot(npa[:,0], npa[:, 1+vn.index('v')])
+</code></pre>
+<pre><code>Out[]:</code></pre>
+<p><a href="../images/py_xppcall-a-python-binding-to-xppaut/1.png"><img src="../images/py_xppcall-a-python-binding-to-xppaut/1.png" /></a></p>
+<pre><code class="language-python">
+# Let's modify constant input current
+npa, vn = xpprun('hh.ode', parameters={'i':20.0}, clean_after=True)
+plt.figure()
+plt.plot(npa[:,0], npa[:, 1+vn.index('v')])
+</code></pre>
+<pre><code>Out[]:</code></pre>
+<p><a href="../images/py_xppcall-a-python-binding-to-xppaut/2.png"><img src="../images/py_xppcall-a-python-binding-to-xppaut/2.png" /></a></p>
+<pre><code class="language-python">
+# Example of an optimization using fmin from SciPy
+from scipy.optimize import fmin
+
+# define desired V graph
+target_v = -80.0+20*npa[:,0]*(np.sign(-npa[:,0]+4)+1)
+plt.figure()
+plt.plot(npa[:,0], target_v)
+</code></pre>
+<pre><code>Out[]:</code></pre>
+<pre><code class="language-python">
+# define objective_func we want to minimize
+def objective_func(x, target=target_v):
+    try:
+        npa, vn = xpprun('hh.ode', parameters={'i':x[0]}, clean_after=True)
+        computed = npa[:, 1+vn.index('v')]
+        return np.mean( (computed-target)**2 )
+    except:
+        return 1e10 # return huge error if something went wrong
+
+xopt = fmin(objective_func, [20.0]) # find new parameters
+npa, vn = xpprun('hh.ode', parameters={'i':xopt[0]}, clean_after=True)
+plt.figure()
+plt.plot(npa[:,0], npa[:, 1+vn.index('v')], label='fit')
+plt.plot(npa[:,0], target_v, label='target')
+plt.legend()
+</code></pre>
+<pre><code>Out[]:</code></pre>
+<div class="figure">
+<img src="../images/py_xppcall-a-python-binding-to-xppaut/4.png" />
+
+</div>
+<p><strong>Congrats! We got a pretty good fit.</strong></p>
+<h1 id="how-to-cite-py_xppcall">How to Cite Py_XPPCALL</h1>
+<p>If you want to refer to Py_XPPCALL in a publication, you can use</p>
+<p>“Prokin, I. and Park, Y. Py_XPPCALL. 2017. Available at: https://github.com/iprokin/Py_XPPCALL.”</p>
+<p>or BibTeX:</p>
+<p><span class="citation">@misc</span>{xppy, author = {Prokin, Ilya and Park, Youngmin}, title = {{Py_XPPCALL}}, url = {https://github.com/iprokin/Py_XPPCALL}, year = {2017} }</p>
+    </section>
+</article>
+
+        </main>
+
+        <footer>
+            Site proudly generated by
+            <a href="http://jaspervdj.be/hakyll">Hakyll</a>
+        </footer>
+    </body>
+</html>

@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Ilya Prokin's Blog - Differential Evolution in Python</title>
+        <link rel="stylesheet" href="../css/default.css" />
+        <script type="text/javascript" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+        <link href="../css/prism.css" rel="stylesheet" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Ubuntu+Mono"> 
+    </head>
+    <body>
+        <script src="../scripts/prism.js"></script>
+        <header>
+            <nav>
+                <a href="../">Home</a>
+                <a href="../about.html">About</a>
+                <a href="../contact.html">Contact</a>
+                <a href="../archive.html">Blog Archive</a>
+                <a href="../research.html">Research</a>
+                <a href="../CV.html">CV</a>
+            </nav>
+        </header>
+
+        <main role="main">
+            <h1>Differential Evolution in Python</h1>
+            <article>
+    <section class="header">
+        Posted on December 10, 2017
+        
+            by Ilya
+        
+    </section>
+    <section>
+        <h1 id="introduction">Introduction</h1>
+<p>During my PhD, I’ve worked on a variety of global optimization problems when fitting my model to experimental data. I tried various heuristic optimization procedures implemented in <a href="https://esa.github.io/pagmo2">pagmo</a> (a great library developed by ESA) and I found <a href="https://en.wikipedia.org/wiki/Differential_evolution">Differential Evolution</a> particularly efficient for my problems. This heuristic algorithm is extremely simple to describe and easy to implement. This is exactly what this post is about.</p>
+<h1 id="algorithm">Algorithm</h1>
+<p>Problem:</p>
+<p>Given cost function <span class="math inline">\(f: \mathbb{R}^n \to \mathbb{R}\)</span> find <span class="math inline">\(\mathrm{arg min}_{\mathbf{x} \in A} f(\mathbf{x})\)</span> where <span class="math inline">\(A \subseteq R^n\)</span>.</p>
+<p>Solution: The idea is losely inspired by evolution. Generate population of candidate solution vectors. Then for each such vector, “parent” vector, generate a new vector using mutation (mixing components of other vectors in population) and crossover (replacement of some of the components of the “parent” vector with mutated values). This gives “son” vector. Then replace “parent” with “son” if “son” is better. Repeat as long as needed.</p>
+<ol start="0" style="list-style-type: decimal">
+<li>Fix <span class="math inline">\(N_{\text{generations}}, N_{\text{population}} \in \mathbb{N}\)</span>, <span class="math inline">\(F_{\text{mutation}} \in [0, 2]\)</span>, <span class="math inline">\(p_{\text{CR}} \in [0,1]\)</span>.</li>
+<li>Generate a population of <span class="math inline">\(N\)</span> candidate solution vectors <span class="math inline">\(\mathbf{x}_0^{(j)}\)</span> where <span class="math inline">\(j=1..N_{\text{population}}\)</span>, <span class="math inline">\(\{\mathbf{x}_0^{(j)}\ |\ j=1..N_{\text{population}}\}\)</span>.</li>
+<li>For each <span class="math inline">\(n \in \{1,...,N_{\text{generations}}\}\)</span>. Evolve <span class="math inline">\(\{\mathbf{x}_n^{(j)}\ |\ j=1..N_{\text{population}}\}\)</span>:
+<ul>
+<li>for each <span class="math inline">\(j\)</span>:
+<ul>
+<li>Pick randomly three “parent” vectors <span class="math inline">\(\mathbf{x}_{n-1}^{(k_1)}\)</span>, <span class="math inline">\(\mathbf{x}_{n-1}^{(k_2)}\)</span>, <span class="math inline">\(\mathbf{x}_{n-1}^{(k_3)}\)</span> where <span class="math inline">\(k_i\)</span> randomly chosen from <span class="math inline">\(\{1,...,N\}\setminus\{j\}\)</span> without replacement.</li>
+<li>Generate <span class="math inline">\(\mathbf{m} = \mathbf{x}_{n-1}^{(k_1)} + F_{\text{mutation}} \cdot (\mathbf{x}_{n-1}^{(k_2)}-\mathbf{x}_{n-1}^{(k_3)})\)</span>.</li>
+<li>Generate <span class="math inline">\(\mathbf{u} = (g(u_1)\ g(u_2)...g(u_{N_{\text{population}}}))\)</span> where each <span class="math inline">\(u_i \sim U(0,1)\)</span>, and <span class="math inline">\(g(x) = 1 \text{ if } x&lt;p_{\text{CR}}\ 0 \text{ otherwise}\)</span>.</li>
+<li>Generate <span class="math inline">\(\mathbf{y} = \mathbf{u} \odot \mathbf{m} + (1-\mathbf{u}) \odot \mathbf{x}_{n-1}^{(j)}\)</span>. Here <span class="math inline">\(\odot\)</span> is elementwise product.</li>
+<li>Update <span class="math inline">\(\mathbf{y}\)</span> by randomly replacing one element in <span class="math inline">\(\mathbf{y}\)</span> by corresponding element in <span class="math inline">\(\mathbf{x}_{n-1}^{(j)}\)</span>.</li>
+<li>if <span class="math inline">\(f(\mathbf{y}) \le f(\mathbf{x}_{n-1}^{j})\)</span> then <span class="math inline">\(\mathbf{x}_n^{(j)} = \mathbf{y}\)</span> otherwise <span class="math inline">\(\mathbf{x}_n^{(j)} = \mathbf{x}_{n-1}^{(j)}\)</span>.</li>
+</ul></li>
+</ul></li>
+</ol>
+<pre><code class="language-python">
+import numpy as np
+import random
+from copy import deepcopy
+import os
+</code></pre>
+<pre><code class="language-python">
+def np_rnd_seed():
+    return np.random.seed(hash(os.urandom(100)) % 1000000000)
+</code></pre>
+<pre><code class="language-python">
+def removeThenChose(i, l, n=3):
+    """
+    randomly take n elements from the list l excluding its i-th element.
+    """
+    l = deepcopy(l)
+    l.pop(i)
+    random.shuffle(l)
+    return l[:n]
+</code></pre>
+<pre><code class="language-python">
+def de(
+        cost,
+        bounds,
+        mutation=1.2,
+        crossoverRate=0.4,
+        popsize=10,
+        maxiter=100,
+        mapper=map # or replace with parallel implementation of the map function
+        ):
+
+    def random_individual():
+        return np.random.uniform(
+                low=bounds[:,0],
+                high=bounds[:,1])
+
+    def random_individual_cost():
+        x = random_individual()
+        return (tuple(x), cost(x))
+
+    def evolve_population(parCost):
+        np_rnd_seed()
+        actual_popsize = len(parCost)
+        if actual_popsize < popsize: # key collision occured so the population shrinked
+            # add random individuals to keep population size constant
+            parCost = dict(
+                list(parCost.items())\
+                +\
+                [ random_individual_cost()
+                  for _ in range(popsize-actual_popsize)]
+                )
+
+        population = list(map(np.array, parCost.keys()))
+
+        def evolve_individual(i):
+            x = population[i]
+            n = len(x)
+            a, b, c = removeThenChose(i, population)
+            m = a + mutation * (b-c)
+            idx_to_modify = np.random.uniform(size=n) < crossoverRate
+            # candidate solution
+            y = deepcopy(x)
+            y[idx_to_modify] = m[idx_to_modify]
+            r = random.randint(0, n-1)
+            y[r] = m[r]
+            # compare
+            costy = cost(y)
+            costx = parCost[tuple(x)] # recall memorized
+            if costy < costx:
+                return (tuple(y), costy)
+            else:
+                return (tuple(x), costx)
+
+        new_parCost = dict(mapper(evolve_individual, range(len(population))))
+        return new_parCost
+
+
+    # init random population & assign costs
+    parCost = dict([random_individual_cost() for _ in range(popsize)])
+
+    for _ in range(maxiter):
+        parCost = evolve_population(parCost)
+
+    return parCost
+</code></pre>
+<p>Let’s test it with <a href="https://en.wikipedia.org/wiki/Ackley_function">Ackley function</a> optimization benchmark. Ackley function has global minimum at f(0,0)=0.</p>
+<pre><code class="language-python">
+def ackley(p):
+    """Ackley optimization benchmark"""
+    x, y = tuple(p)
+    return\
+        -20*np.exp(-0.2*np.sqrt(0.5*(x**2+y**2)))\
+        -np.exp(0.5*(np.cos(2*np.pi*x) + np.cos(2*np.pi*y)))\
+        +np.exp(1)+20
+
+cost = ackley
+bounds = np.array(
+    [ [-10, 10]
+    , [-20, 20]
+    ])
+parCost = de(cost, bounds, mapper=pmap, popsize=100)
+best = min(parCost.items(), key=lambda t: t[1])
+print(best)
+</code></pre>
+<h1 id="references">References</h1>
+<ul>
+<li><a href="https://en.wikipedia.org/wiki/Differential_evolution">Differential Evolution</a></li>
+<li><a href="https://esa.github.io/pagmo2">pagmo</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Ackley_function">Ackley function</a></li>
+</ul>
+    </section>
+</article>
+
+        </main>
+
+        <footer>
+            Site proudly generated by
+            <a href="http://jaspervdj.be/hakyll">Hakyll</a>
+        </footer>
+    </body>
+</html>
