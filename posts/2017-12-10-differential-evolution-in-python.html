@@ -39,7 +39,7 @@
 <p>During my PhD, I’ve worked on a variety of global optimization problems when fitting my model to experimental data. I tried various heuristic optimization procedures implemented in <a href="https://esa.github.io/pagmo2">pagmo</a> (a great library developed by ESA) and I found <a href="https://en.wikipedia.org/wiki/Differential_evolution">Differential Evolution</a> particularly efficient for my problems. This heuristic algorithm is extremely simple to describe and easy to implement. This is exactly what this post is about.</p>
 <h1 id="algorithm">Algorithm</h1>
 <p>Problem:</p>
-<p>Given cost function <span class="math inline">\(f: \mathbb{R}^n \to \mathbb{R}\)</span> find <span class="math inline">\(\mathrm{arg min}_{\mathbf{x} \in A} f(\mathbf{x})\)</span> where <span class="math inline">\(A \subseteq R^n\)</span>.</p>
+<p>Given cost function <span class="math inline">\(f: \mathbb{R}^n \to \mathbb{R}\)</span> find <span class="math inline">\(\mathrm{arg min}_{\mathbf{x} \in A} f(\mathbf{x})\)</span> where <span class="math inline">\(A \subseteq \mathbb{R}^n\)</span>.</p>
 <p>Solution: The idea is losely inspired by evolution. Generate population of candidate solution vectors. Then for each such vector, “parent” vector, generate a new vector using mutation (mixing components of other vectors in population) and crossover (replacement of some of the components of the “parent” vector with mutated values). This gives “son” vector. Then replace “parent” with “son” if “son” is better. Repeat as long as needed.</p>
 <ol start="0" style="list-style-type: decimal">
 <li>Fix <span class="math inline">\(N_{\text{generations}}, N_{\text{population}} \in \mathbb{N}\)</span>, <span class="math inline">\(F_{\text{mutation}} \in [0, 2]\)</span>, <span class="math inline">\(p_{\text{CR}} \in [0,1]\)</span>.</li>
@@ -53,7 +53,7 @@
 <li>Generate <span class="math inline">\(\mathbf{u} = (g(u_1)\ g(u_2)...g(u_{N_{\text{population}}}))\)</span> where each <span class="math inline">\(u_i \sim U(0,1)\)</span>, and <span class="math inline">\(g(x) = 1 \text{ if } x&lt;p_{\text{CR}}\ 0 \text{ otherwise}\)</span>.</li>
 <li>Generate <span class="math inline">\(\mathbf{y} = \mathbf{u} \odot \mathbf{m} + (1-\mathbf{u}) \odot \mathbf{x}_{n-1}^{(j)}\)</span>. Here <span class="math inline">\(\odot\)</span> is elementwise product.</li>
 <li>Update <span class="math inline">\(\mathbf{y}\)</span> by randomly replacing one element in <span class="math inline">\(\mathbf{y}\)</span> by corresponding element in <span class="math inline">\(\mathbf{x}_{n-1}^{(j)}\)</span>.</li>
-<li>if <span class="math inline">\(f(\mathbf{y}) \le f(\mathbf{x}_{n-1}^{j})\)</span> then <span class="math inline">\(\mathbf{x}_n^{(j)} = \mathbf{y}\)</span> otherwise <span class="math inline">\(\mathbf{x}_n^{(j)} = \mathbf{x}_{n-1}^{(j)}\)</span>.</li>
+<li>if <span class="math inline">\(f(\mathbf{y}) \le f(\mathbf{x}_{n-1}^{(j)})\)</span> then <span class="math inline">\(\mathbf{x}_n^{(j)} = \mathbf{y}\)</span> otherwise <span class="math inline">\(\mathbf{x}_n^{(j)} = \mathbf{x}_{n-1}^{(j)}\)</span>.</li>
 </ul></li>
 </ul></li>
 </ol>
@@ -67,12 +67,14 @@ import os
 </code></pre>
 <pre><code class="language-python">
 def np_rnd_seed():
+    """ Generates random seed """
     return np.random.seed(hash(os.urandom(100)) % 1000000000)
 </code></pre>
 <pre><code class="language-python">
 def removeThenChose(i, l, n=3):
     """
-    randomly take n elements from the list l excluding its i-th element.
+    randomly take n elements from the list l
+    excluding its i-th element.
     """
     l = deepcopy(l)
     l.pop(i)
@@ -159,7 +161,7 @@ bounds = np.array(
     [ [-10, 10]
     , [-20, 20]
     ])
-parCost = de(cost, bounds, mapper=pmap, popsize=100)
+parCost = de(cost, bounds, mapper=map, popsize=100)
 best = min(parCost.items(), key=lambda t: t[1])
 print(best)
 </code></pre>
