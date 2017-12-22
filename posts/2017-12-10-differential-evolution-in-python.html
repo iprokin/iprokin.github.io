@@ -27,7 +27,9 @@
 
         <main role="main">
             <h1>Differential Evolution in Python</h1>
-            <article>
+            <script type="text/javascript" async src="../scripts/disqus.js">
+</script>
+<article>
     <section class="header">
         Posted on December 10, 2017
         
@@ -53,7 +55,7 @@
 <li>Generate <span class="math inline">\(\mathbf{u} = (g(u_1)\ g(u_2)...g(u_{N_{\text{population}}}))\)</span> where each <span class="math inline">\(u_i \sim U(0,1)\)</span>, and <span class="math inline">\(g(x) = 1 \text{ if } x&lt;p_{\text{CR}}\ 0 \text{ otherwise}\)</span>.</li>
 <li>Generate <span class="math inline">\(\mathbf{y} = \mathbf{u} \odot \mathbf{m} + (1-\mathbf{u}) \odot \mathbf{x}_{n-1}^{(j)}\)</span>. Here <span class="math inline">\(\odot\)</span> is elementwise product.</li>
 <li>Update <span class="math inline">\(\mathbf{y}\)</span> by randomly replacing one element in <span class="math inline">\(\mathbf{y}\)</span> by corresponding element in <span class="math inline">\(\mathbf{x}_{n-1}^{(j)}\)</span>.</li>
-<li>if <span class="math inline">\(f(\mathbf{y}) \le f(\mathbf{x}_{n-1}^{(j)})\)</span> then <span class="math inline">\(\mathbf{x}_n^{(j)} = \mathbf{y}\)</span> otherwise <span class="math inline">\(\mathbf{x}_n^{(j)} = \mathbf{x}_{n-1}^{(j)}\)</span>.</li>
+<li>if <span class="math inline">\(f(\mathbf{y}) \lt f(\mathbf{x}_{n-1}^{(j)})\)</span> then <span class="math inline">\(\mathbf{x}_n^{(j)} = \mathbf{y}\)</span> otherwise <span class="math inline">\(\mathbf{x}_n^{(j)} = \mathbf{x}_{n-1}^{(j)}\)</span>.</li>
 </ul></li>
 </ul></li>
 </ol>
@@ -172,6 +174,7 @@ print(best)
 <li><a href="https://en.wikipedia.org/wiki/Ackley_function">Ackley function</a></li>
 </ul>
     </section>
+    <div id="disqus_thread"></div>
 </article>
 
         </main>
