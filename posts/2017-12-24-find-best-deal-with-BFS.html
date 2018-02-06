@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Ilya Prokin's Blog - Getting the best deal with BFS</title>
+        <link rel="stylesheet" href="../css/default.css" />
+        <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+        </script>
+        <link href="../css/prism.css" rel="stylesheet" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Ubuntu+Mono"> 
+    </head>
+    <body>
+        <script src="../scripts/prism.js"></script>
+        <header>
+            <nav>
+                <a href="../">Home</a>
+                <a href="../about.html">About</a>
+                <a href="../contact.html">Contact</a>
+                <a href="../archive.html">Blog Archive</a>
+                <a href="../research.html">Research</a>
+                <a href="../CV.html">CV</a>
+            </nav>
+        </header>
+
+        <main role="main">
+            <h1>Getting the best deal with BFS</h1>
+            <script type="text/javascript" async src="../scripts/disqus.js">
+</script>
+<article>
+    <section class="header">
+        Posted on December 24, 2017
+        
+            by Ilya
+        
+    </section>
+    <section>
+        <h1 id="introduction">Introduction</h1>
+<p>Imagine you are in France and you have many euros (EUR). In a week, you will be in China and you want to have yuans (CNY), but before going to China you will pass by US. Is it better to exchange your EUR to CNY directly or first exchange them to USD and then exchance USD to CNY? It depends. In general, there I might have capital in many currencies <span class="math inline">\(v \in V = \{\text{USD}, \text{EUR}, \text{CNY},...\}\)</span> and many possible exchange pairs can be availabe <span class="math inline">\(p \in E \subseteq V^2\)</span> e.g. <span class="math inline">\((\text{USD}, \text{CNY})\)</span> from USD to CNY. <span class="math inline">\(r: V^2 \to \mathbb{R}\)</span> gives exchange rate for a pair. You want to exchange <span class="math inline">\(v_1\)</span> to <span class="math inline">\(v_2\)</span> (both <span class="math inline">\(\in V\)</span>), your rate (exchange fee adjusted), if exchanging directly, is <span class="math inline">\(r(p_2)\)</span> where <span class="math inline">\(p_2=(v_1, v_2)\)</span>. What is the best sequence of possibly indirect exchanges?</p>
+<p>This is a path optimization problem on a graph (<span class="math inline">\(G=(V, E)\)</span>) of all available exchanges.</p>
+<p>Let say I do <span class="math inline">\(n\)</span> exchange transactions. Find sequence of <span class="math inline">\(p_1, p_2,...,p_n\)</span> (<span class="math inline">\(p_i=(v_{i-1}, v_i)\)</span>) so that</p>
+<p>My capital <span class="math inline">\(C_i\)</span> after i-th transaction (in corresponding currency): <span class="math display">\[C_{i} = C_{i-1} r(p_{i}) = C_{i-1} r_i\]</span> For here, after <span class="math inline">\(n\)</span> transactions my initial capital <span class="math inline">\(C_0\)</span> changes as: <span class="math display">\[C_n = C_0 \cdot r_1 \cdot r_2 \cdot ... \cdot r_n \]</span> <span class="math display">\[\frac{C_n}{C_0} = r_1 \cdot r_2 \cdot ... \cdot r_n \]</span></p>
+<p>I want to maximize this ratio.</p>
+<div style="border: 1px solid black; padding: 1em;">
+<p>Problem:</p>
+<p>Find sequence of <span class="math inline">\(p_1, p_2,...,p_n\)</span> (<span class="math inline">\(p_i=(v_{i-1}, v_i)\)</span>) so that<br />
+<span class="math inline">\(Q(p_1, p_2,...,p_n) = \prod_{i=1}^n r(p_i)\)</span> is maximized.</p>
+</div>
+<h1 id="getting-hands-dirty-with-python-3">Getting hands dirty with Python 3</h1>
+<p>Unfortunatelly, <a href="https://en.wikipedia.org/wiki/Dijkstra's_algorithm">Dijkstra’s algorithm</a> is not good for this problem as <span class="math inline">\(Q\)</span> can go both up and down with the increase of <span class="math inline">\(n\)</span>. If the number of currency pairs is not large, one can use good old <a href="https://en.wikipedia.org/wiki/Breadth-first_search">Breadth-first search (BFS)</a> to find all paths and then take the one with the lowest <span class="math inline">\(Q\)</span>.</p>
+<p>I am going to use cryptocurrency exchange pairs from Bitfinex.</p>
+<p>But first, some imports:</p>
+<pre><code class="language-python">
+```python
+import urllib.request
+import json
+import queue
+import pandas as pd
+from copy import deepcopy
+from functools import partial, reduce
+
+import operator
+from time import sleep
+```
+</code></pre>
+<p>Getting data from bitfinex using their public API:</p>
+<pre><code class="language-python">
+```python
+def get(url):
+    with urllib.request.urlopen(url) as r:
+        data = json.loads(r.read().decode())
+        return pd.Series(data)
+
+
+def get_symbols_bitfinex(
+        url = 'https://api.bitfinex.com/v1/symbols'):
+    return get(url)
+
+
+def getDfBitFinex(
+        symbols,
+        wait=1,
+        url="https://api.bitfinex.com/v1/ticker/"):
+
+    def delayedGet(symbol, wait=wait):
+        # Bitfinex limits # of API requests per unit time
+        r = get(url+symbol).to_frame().T
+        sleep(wait)
+        return r
+
+    df = pd.concat(map(delayedGet, symbols),
+                   keys=symbols,
+                   axis=1)
+    return df
+```
+</code></pre>
+<p>Build a graph of exchange pairs:</p>
+<pre><code class="language-python">
+```python
+def symbolsToDictGraph(symbols):
+    edges = list(map(lambda x: (x[:3], x[-3:]), symbols))
+
+    graph = {}
+
+    def addFT(graph, f, t):
+        if f in graph.keys():
+            graph[f].append(t)
+        else:
+            graph[f] = [t]
+
+    for edge in edges:
+        addFT(graph, edge[0], edge[1])
+        addFT(graph, edge[1], edge[0])
+
+    return graph
+```
+</code></pre>
+<p>Define function that determines exchange rate <span class="math inline">\(r\)</span>:</p>
+<pre><code class="language-python">
+```python
+def getRateWithFees(df, f, t, fee=0.002):
+    """Get weight of an edge"""
+    tf = f+t
+    ft = t+f
+    ss = set(df.columns.get_level_values(0))
+    if ft in ss: # I am buying
+        p = 1.0 / float(df[ft]['ask'])
+    elif tf in ss: # I am selling
+        p = float(df[tf]['bid'])
+    else:
+        raise ValueError()
+    return p * (1-fee)
+```
+</code></pre>
+<p>Abstract graph as a class:</p>
+<pre><code class="language-python">
+```python
+class WeightedGraph():
+    def __init__(self):
+        self.get_weight = lambda f,t: 1
+        self._graph = {}
+    def from_dict_and_func(self, graph, weightsFunc):
+        new = deepcopy(self)
+        new.get_weight = weightsFunc
+        new._graph = graph
+        return new
+    def get_neighbours(self, node):
+        return self._graph[node]
+```
+</code></pre>
+<p>To find all paths with BFS:</p>
+<pre><code class="language-python">
+```python
+def allPathsBFS(graph, start_node, goal_node):
+    # https://www.geeksforgeeks.org/print-paths-given-source-destination-using-bfs/
+    paths = queue.Queue()
+    paths.put([start_node])
+    good_paths = []
+
+    while not paths.empty():
+        path = paths.get()
+
+        current_node = path[-1]
+        if current_node == goal_node:
+            good_paths.append(path)
+        else:
+            for next_node in graph.get_neighbours(current_node):
+                if next_node not in path:
+                    paths.put(path + [next_node])
+    return good_paths
+```
+</code></pre>
+<p>To find all loops with BFS (to check if it is possible to do round trip exchange and make money):</p>
+<pre><code class="language-python">
+```python
+def allLoopsBFS(graph, start_node):
+    # https://www.geeksforgeeks.org/print-paths-given-source-destination-using-bfs/
+    paths = queue.Queue()
+    paths.put([start_node])
+    good_paths = []
+
+    while not paths.empty():
+        path = paths.get()
+        current_node = path[-1]
+        for next_node in graph.get_neighbours(current_node):
+            if next_node == start_node:
+                good_paths.append(path + [next_node])
+            else:
+                if next_node not in path:
+                    paths.put(path + [next_node])
+    return good_paths
+```
+</code></pre>
+<p>Compute <span class="math inline">\(Q\)</span> and find a path minimizing <span class="math inline">\(Q\)</span>:</p>
+<pre><code class="language-python">
+```python
+def walkPathAndReduce(wgraph, path, how=operator.add):
+    costs = map(wgraph.get_weight, path[:-1], path[1:])
+    return reduce(how, costs)
+
+
+def getPathsSortedByReducedWeight(wgraph, paths, how=operator.mul):
+    pathReducer = partial(walkPathAndReduce, wgraph, how=how)
+    pathConversion = list(zip(paths,
+                              map(pathReducer, paths)))
+    # sort by conversion coefficient (the larger the better)
+    pathConversionSorted = sorted(pathConversion,
+                                  key=lambda x: x[1],
+                                  reverse=True)
+    return pathConversionSorted
+
+
+def bestLoop(wgraph, curr):
+    loops = allLoopsBFS(wgraph, curr)
+    return max(getPathsSortedByReducedWeight(wgraph, loops),
+               key=lambda x:x[1])
+```
+</code></pre>
+<pre><code class="language-python">
+```python
+if __name__ == '__main__':
+
+    #symbols = ["BTCUSD", "BTCEUR", "ETHUSD", "ETHBTC"]
+    symbols = get_symbols_bitfinex().str.upper().values.tolist()
+
+    def isFavourite(symbol):
+        favourite_coins =\
+            [ 'BTC', 'BCH', 'ETH', 'ETC', 'XRP'
+            , 'XMR', 'LTC', 'DASH'
+            , 'ZEC', 'NEO', 'IOTA', 'EOS'
+            , 'USD', 'EUR'
+            ]
+        return symbol[:3] in favourite_coins and\
+               symbol[3:] in favourite_coins
+    symbols = list(filter(isFavourite, symbols))
+
+    print(symbols, "\n")
+
+    graph = symbolsToDictGraph(symbols)
+
+    # Load price data for each symbol and make weighted graph
+    # Load
+    df = getDfBitFinex(symbols, wait=0.5)
+    print(df.head())
+    # Weight
+    wgraph = WeightedGraph().from_dict_and_func(graph, partial(getRateWithFees, df))
+
+    f='ETH'
+    t='BTC'
+    allSimplePaths = allPathsBFS(wgraph, f, t)
+    pathConversionSorted = getPathsSortedByReducedWeight(
+            wgraph, allSimplePaths)
+
+    withMaxConversion = pathConversionSorted[0]
+    print("Best path:")
+    print( withMaxConversion[0] )
+    print("\n")
+    #print(pd.DataFrame(pathConversionSorted))
+
+
+    print("\nLoops:\n")
+
+    for curr in ["USD", "EUR"]:
+        print(curr)
+        print(bestLoop(wgraph, curr))
+
+    #nwSP = list(nx.all_simple_paths(g, f, t))
+    #print( nwSP )
+    #assert sorted(list(map(lambda x: x[0], pathConversion))) == sorted(nwSP)
+
+    #print(wgraph._graph)
+```
+</code></pre>
+<p>Running this we get:</p>
+<pre>
+['BTCUSD', 'LTCUSD', 'LTCBTC',
+'ETHUSD', 'ETHBTC', 'ETCBTC',
+'ETCUSD', 'ZECUSD', 'ZECBTC',
+'XMRUSD', 'XMRBTC', 'BTCEUR',
+'XRPUSD', 'XRPBTC', 'EOSUSD',
+'EOSBTC', 'EOSETH', 'BCHUSD',
+'BCHBTC', 'BCHETH', 'NEOUSD',
+'NEOBTC', 'NEOETH']
+
+   BTCUSD                                                   LTCUSD
+\
+      ask     bid last_price      mid             timestamp    ask
+bid
+0  7500.9  7500.0     7500.0  7500.45  1517950610.895018287  137.0
+136.93
+
+                                                     ...
+NEOBTC  \
+  last_price      mid             timestamp          ...
+ask
+0      137.0  136.965  1517950611.552708965          ...
+0.013171
+
+                                                      NEOETH
+\
+        bid last_price        mid         timestamp      ask      bid
+0  0.013108   0.013108  0.0131395  1517950628.06685  0.13019  0.12999
+
+
+  last_price      mid             timestamp
+0    0.12999  0.13009  1517950628.738781986
+
+[1 rows x 115 columns]
+Best path:
+['ETH', 'USD', 'XRP', 'BTC']
+
+
+
+Loops:
+
+USD
+(['USD', 'XRP', 'BTC', 'USD'],
+1.0000355620727182)
+EUR
+(['EUR', 'BTC', 'EUR'], 0.9958555101378213)
+</pre>
+<h1 id="conclusion">Conclusion</h1>
+<ul>
+<li>It is hard to make money doing round trip exchanges.</li>
+<li>The best path is not always straight.</li>
+</ul>
+    </section>
+    <div id="disqus_thread"></div>
+</article>
+
+        </main>
+
+        <footer>
+            Site proudly generated by
+            <a href="http://jaspervdj.be/hakyll">Hakyll</a>
+        </footer>
+    </body>
+</html>
