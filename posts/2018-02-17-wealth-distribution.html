@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Ilya Prokin's Blog - Talent and wealth</title>
+        <link rel="stylesheet" href="../css/default.css" />
+        <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+        </script>
+        <link href="../css/prism.css" rel="stylesheet" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Ubuntu+Mono"> 
+    </head>
+    <body>
+        <script src="../scripts/prism.js"></script>
+        <header>
+            <nav>
+                <a href="../">Home</a>
+                <a href="../about.html">About</a>
+                <a href="../contact.html">Contact</a>
+                <a href="../archive.html">Blog Archive</a>
+                <a href="../research.html">Research</a>
+                <a href="../CV.html">CV</a>
+            </nav>
+        </header>
+
+        <main role="main">
+            <h1>Talent and wealth</h1>
+            <script type="text/javascript" async src="../scripts/disqus.js">
+</script>
+<article>
+    <section class="header">
+        Posted on February 17, 2018
+        
+            by Ilya
+        
+    </section>
+    <section>
+        <h1 id="intro">Intro</h1>
+<p>Is it possible that the distribution of wealth (assumed power-law) is a consequence of the distribution of talent (assumed normal)? If so, what should be the mapping <span class="math inline">\(f\)</span>, between talent <span class="math inline">\(x\)</span>, and wealth <span class="math inline">\(y\)</span>.</p>
+<p>Consider two random variables:</p>
+<p><span class="math inline">\(X\)</span> is the talent, <span class="math inline">\(Y\)</span> is the wealth.</p>
+<p>Assuming <span class="math inline">\(X \sim \mathcal{N}(\mu, \sigma)\)</span>, <span class="math inline">\(Y \sim \mathrm{Power}(y_{\text{min}}, \alpha)\)</span> find <span class="math inline">\(f:\mathbb{R} \to [y_{\text{min},+\infty})\)</span>, <span class="math inline">\(Y=f(X)\)</span>.</p>
+<p><span class="math inline">\(f\)</span> is assumed continuous, so: <span class="math display">\[P(x&lt;X&lt;x+dx) = P(y&lt;Y&lt;y+dy)\]</span> <span class="math display">\[f_X(x&lt;X&lt;x+dx)dx = f_Y(y&lt;Y&lt;y+dy)dy\]</span></p>
+<p>Integrating both sides from <span class="math inline">\(-\infty\)</span> to x we get normal CDF (<span class="math inline">\(\Phi\)</span>) on the left:</p>
+<p><span class="math display">\[\Phi(x; \mu, \sigma) = \int_{f(-\infty)}^{f(x)}\frac{\alpha-1}{y_{\text{min}}^{-\alpha+1}}y^{-\alpha}dy\]</span></p>
+<p><span class="math display">\[ \Phi(x; \mu, \sigma) = \frac{\alpha-1}{y_{\text{min}}^{-\alpha+1}(-\alpha+1)} y^{-\alpha+1}\bigg\rvert_{f(-\infty)}^{f(x)} \]</span></p>
+<p><span class="math display">\[f(x) = \frac{1}{ \left( f(-\infty)^{-(\alpha-1)} - y_{\text{min}}^{-(\alpha-1)}\Phi(x; \mu, \sigma) \right)^{\frac{1}{\alpha-1}}} \]</span></p>
+<p>Singularity points occur when:</p>
+<p><span class="math display">\[\Phi(x; \mu, \sigma) = \left( \frac{y_{\text{min}}}{f(-\infty)} \right)^{(\alpha-1)}\]</span></p>
+<p>If <span class="math inline">\(\alpha \geq 2\)</span> and <span class="math inline">\(y_{\text{min}} &gt; f(-\infty) &gt; 0\)</span> there is no singularity.</p>
+<h1 id="getting-hands-dirty">Getting hands dirty</h1>
+<p>I used pure Haskell to compute <span class="math inline">\(f\)</span>:</p>
+<pre><code class="language-haskell">
+```haskell
+import Data.List (transpose)
+
+phi :: (Ord a, Floating a) => a -> a
+phi x = y 
+    where
+        a1 =  0.254829592
+        a2 = -0.284496736
+        a3 =  1.421413741
+        a4 = -1.453152027
+        a5 =  1.061405429
+        p  =  0.3275911
+
+        -- Abramowitz and Stegun formula 7.1.26
+        sign | x > 0     = 1
+             | otherwise = -1
+        t = 1.0/(1.0 + p * abs x / sqrt 2.0)
+        e = 1.0 - (((((a5*t + a4)*t) + a3)*t + a2)*t + a1)*t*exp(-x*x/2.0)
+        y = 0.5*(sign*e + 1.0)
+
+f :: (Ord a, Floating a) => a -> a -> a -> a -> a
+f alpha ymin finf x = 1/(finf**p - ymin**p * (phi x))**(-1/p)
+    where p = -alpha+1
+
+toLine :: String -> [String] -> String
+toLine sep [x]    = x
+toLine sep (x:xs) = x ++ sep ++ toLine sep xs
+
+toCSVstr :: Show a => String -> [[a]] -> String
+toCSVstr sep xss = toLine "\n" (map (toLine sep . map show) xss)
+
+main = do
+    let ymin = 10 -- USD
+        alpha = 2
+        xs = [-5,-5+0.01..5]
+        y finf = map (f alpha ymin finf) xs
+        finfs = [0.1, 5, 9.9, 10]
+        df = transpose $ [xs] ++ map y finfs
+        csv = toCSVstr "," df
+    writeFile "wd.csv" $ "x,"++ (toLine "," . map show) finfs ++ "\n" ++ csv
+```
+</code></pre>
+<p>Plotting in python:</p>
+<pre><code class="language-python">
+```python
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+
+df = pd.read_csv('wd.csv', sep=',', index_col='x')
+df.columns = df.columns.map(lambda x: '$f(\\infty)$='+x)
+
+_, axs = plt.subplots(1+df.shape[1], 1, sharex=True, figsize=(2, 5))
+
+x = np.linspace(-5, 5, 100)
+axs[0].plot(x, 1/np.sqrt(2*np.pi) * np.exp(-0.5*x**2), '-k')
+axs[0].set_ylabel('$f_X(x)$')
+
+for ax in axs[1:]:
+    ax.set_ylabel('f(x)')
+df.plot(subplots=True, ax=axs[1:])
+```
+</code></pre>
+<h1 id="conclusion">Conclusion</h1>
+<p>In our simple model, it is possible to assign wealth with monotonously increasing function of talent.</p>
+<h1 id="references">References</h1>
+<ul>
+<li><a href="https://en.wikipedia.org/wiki/Power_law" class="uri">https://en.wikipedia.org/wiki/Power_law</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Normal_distribution" class="uri">https://en.wikipedia.org/wiki/Normal_distribution</a></li>
+</ul>
+    </section>
+    <div id="disqus_thread"></div>
+</article>
+
+        </main>
+
+        <footer>
+            Site proudly generated by
+            <a href="http://jaspervdj.be/hakyll">Hakyll</a>
+        </footer>
+    </body>
+</html>
