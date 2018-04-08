@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Ilya Prokin's Blog - Rubik's triangle</title>
+        <link rel="stylesheet" href="../css/default.css" />
+        <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+        </script>
+        <link href="../css/prism.css" rel="stylesheet" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Ubuntu+Mono"> 
+    </head>
+    <body>
+        <script src="../scripts/prism.js"></script>
+        <header>
+            <nav>
+                <a href="../">Home</a>
+                <a href="../about.html">About</a>
+                <a href="../contact.html">Contact</a>
+                <a href="../archive.html">Blog Archive</a>
+                <a href="../research.html">Research</a>
+                <a href="../CV.html">CV</a>
+            </nav>
+        </header>
+
+        <main role="main">
+            <h1>Rubik's triangle</h1>
+            <script type="text/javascript" async src="../scripts/disqus.js">
+</script>
+<article>
+    <section class="header">
+        Posted on April  8, 2018
+        
+            by Ilya
+        
+    </section>
+    <section>
+        <h1 id="intro">Intro</h1>
+<p>Recently, we were taking a break with a colleague by trying to compute the number of states of 2x2x2 Rubik’s cube. After a while, we decided to consider a simpler problem, so Rubik’s triangle was born.</p>
+<p>It’s initial state:</p>
+<pre><code>   B↑
+ 1/ \3
+A↑ − C↑
+   2</code></pre>
+<p>You can swap corners along edges 1,2,3. Swapping along 1 leads to</p>
+<pre><code>   A↓
+  / \
+B↓ − C↑</code></pre>
+<p>If you then swap along 2:</p>
+<pre><code>   A↓
+  / \
+C↑ − B↓</code></pre>
+<p>Note that each time you swap, not only letters (A,B,C) are swapped between corners, but so does the orientation of corners (↑ or ↓). This adds a constraint to imitate constraints that you have in Rubik’s cube.</p>
+<p>The goal of the game is to go back to the initial state after many random swaps. Here is your goal:</p>
+<pre><code>   B↑
+  / \ 
+A↑ − C↑</code></pre>
+<h1 id="play-it-with-haskell">Play it with Haskell</h1>
+<p>For your pleasure, I’ve coded this game in Haskell. Run it with <code>runhaskell rubik_triangle.hs</code> or compile it <code>ghc rubik_triangle.hs</code>.</p>
+<pre><code class="language-haskell">
+```haskell
+import System.IO (BufferMode(NoBuffering), stdin, hSetBuffering)
+import System.Random (newStdGen, randomRs)
+import Data.Char (digitToInt)
+import Control.Monad (when)
+
+data Orientation = Up | Down deriving (Eq)
+instance Show Orientation where
+    show Up   = "↑"
+    show Down = "↓"
+data Letter = A | B | C deriving (Show, Eq)
+
+data Angle = Angle Orientation Letter deriving (Eq)
+instance Show Angle where
+    show (Angle o l) = show l ++ show o
+data Triangle = Triangle Angle Angle Angle deriving (Eq)
+instance Show Triangle where
+    show (Triangle a b c) = 
+        "    "++show b++"    \n" ++
+        "   /"++" "++"\\    \n" ++
+        " "++show a++" −"++" "++show c
+
+flipO :: Orientation -> Orientation
+flipO Up   = Down
+flipO Down = Up
+
+trans :: (Angle, Angle) -> (Angle, Angle)
+trans (Angle o1 l1, Angle o2 l2) = (Angle (flipO o1) l2, Angle (flipO o2) l1)
+
+transition :: Int -> Triangle -> Triangle
+transition 1 (Triangle a b c) = Triangle a' b' c
+    where (a', b') = trans (a, b)
+transition 2 (Triangle a c b) = Triangle a' c b'
+    where (a', b') = trans (a, b)
+transition 3 (Triangle c a b) = Triangle c a' b'
+    where (a', b') = trans (a, b)
+
+seqToTransition :: [Int] -> (Triangle -> Triangle)
+seqToTransition [] = id
+seqToTransition (n:ns)
+  | n `elem` [1, 2, 3] = transition n . seqToTransition ns
+  | otherwise = error "Bad n"
+
+tr0 = Triangle (Angle Up A) (Angle Up B) (Angle Up C)
+
+loop :: Triangle -> IO ()
+loop tr = do
+    print tr
+    putStrLn "\n"
+    when (tr == tr0) $ putStrLn "It is solved!"
+    x <- getChar
+    putStrLn ("You pressed: " ++ [x])
+    if x `elem` ['1', '2', '3']
+       then loop $ transition (digitToInt x) tr
+       else case x of
+              'q'       -> return ()
+              'h'       -> do
+                  putStrLn helpMsg
+                  loop tr
+              otherwise -> loop tr
+
+helpMsg = "\n\nPress 1,2,3 to play, q to quit. h to print this message.\n\n"
+
+main :: IO ()
+main = do
+    hSetBuffering stdin NoBuffering
+    putStrLn helpMsg
+    putStrLn "Initial solved state state:\n"
+    print tr0
+    putStrLn "\nMixing it:\n"
+    g <- newStdGen
+    let moves   = randomRs (1, 3 :: Int) g
+        trMixed = seqToTransition (take 40 moves) $ tr0
+    loop trMixed
+
+```
+</code></pre>
+    </section>
+    <div id="disqus_thread"></div>
+</article>
+
+        </main>
+
+        <footer>
+            Site proudly generated by
+            <a href="http://jaspervdj.be/hakyll">Hakyll</a>
+        </footer>
+    </body>
+</html>
