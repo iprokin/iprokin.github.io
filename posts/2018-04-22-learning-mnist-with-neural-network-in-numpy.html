@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="x-ua-compatible" content="ie=edge">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Ilya Prokin's Blog - Learning MNIST with a neural network in pure NumPy/Python</title>
+        <link rel="stylesheet" href="../css/default.css" />
+        <script type="text/javascript" async src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+        </script>
+        <link href="../css/prism.css" rel="stylesheet" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=PT+Sans" />
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Ubuntu+Mono"> 
+    </head>
+    <body>
+        <script src="../scripts/prism.js"></script>
+        <header>
+            <nav>
+                <a href="../">Home</a>
+                <a href="../about.html">About</a>
+                <a href="../contact.html">Contact</a>
+                <a href="../archive.html">Blog Archive</a>
+                <a href="../research.html">Research</a>
+                <a href="../CV.html">CV</a>
+            </nav>
+        </header>
+
+        <main role="main">
+            <h1>Learning MNIST with a neural network in pure NumPy/Python</h1>
+            <script type="text/javascript" async src="../scripts/disqus.js">
+</script>
+<article>
+    <section class="header">
+        Posted on April 22, 2018
+        
+            by Ilya
+        
+    </section>
+    <section>
+        <h1 id="introduction">Introduction</h1>
+<h2 id="set-up">Set up</h2>
+<p>We are given the dataset <span class="math inline">\(X = \{ (\mathbf{x}_n, \mathbf{y}_n) \mid n=1,..,N \}\)</span> that is a sequence of data points <span class="math inline">\((\mathbf{x}_n, \mathbf{y}_n) \in \mathbb{R}^{d_x} \times \mathbb{R}^{d_y}\)</span>, where <span class="math inline">\(N\)</span> is the number of data points. <span class="math inline">\(\mathbf{x_n}\)</span> are sampled from an unknown distribution <span class="math inline">\(\mathcal{D}\)</span>, and mapped to <span class="math inline">\(\mathbb{R}^{d_y}\)</span> with an unknown function <span class="math inline">\(f(\mathbf{x_n}) = \mathbf{y_n}\)</span>, <span class="math inline">\(f\)</span> determines the correct <span class="math inline">\(\mathbf{y}\)</span> for each <span class="math inline">\(\mathbf{x}\)</span>.</p>
+<h2 id="neural-network">Neural network</h2>
+<p>The neural nework is a parametric function <span class="math inline">\(NN: \mathbb{R}^{d_x} \to \mathbb{R}^{d_y}\)</span> that tries to approximate the unknown <span class="math inline">\(f\)</span>: <span class="math display">\[\hat{\mathbf{y}} = NN(\mathbf{x}, \Theta).\]</span> <span class="math inline">\(\Theta\)</span> is a vector of parameters. The neural network is composed of <span class="math inline">\(K\)</span> layers (indexed with <span class="math inline">\(l=1,..,K\)</span>) of simple functions <span class="math inline">\(g_l\)</span> (neurons) whereby the output of a layer <span class="math inline">\(l\)</span>, <span class="math inline">\(\mathbf{o}_l\)</span>, plays the role of an input for the next layer <span class="math inline">\(l+1\)</span>. <span class="math inline">\(\Theta\)</span> lumps together parameters of all layers (<span class="math inline">\(\mathbf{w}^l\)</span> for all <span class="math inline">\(l\)</span>).</p>
+<div class="figure">
+<img src="../images/learning-mnist/nn.svg" />
+
+</div>
+<p><span class="math display">\[\mathbf{o}^l = g_l(\mathbf{a}^l) = g_l(\mathbf{w}^l\mathbf{o}^{l-1})\]</span> <span class="math display">\[\mathbf{a}^l = \mathbf{w}^l\mathbf{o}^{l-1} = \mathbf{w}^lg_l(\mathbf{a}^{l-1})\]</span></p>
+<p>where <span class="math inline">\(g_l\)</span> is a nonlinear function, <span class="math inline">\(\mathbf{w}^l\)</span> is <span class="math inline">\(N_l \times (N_{l-1}+1)\)</span> matrix of parameters for the layer <span class="math inline">\(l\)</span>, <span class="math inline">\(N_l\)</span> is the number of neurons in layer <span class="math inline">\(l\)</span>, <span class="math inline">\(\mathbf{o}^{l-1}\)</span> is a <span class="math inline">\((N_{l-1}+1)\)</span> column vector, <span class="math inline">\(\mathbf{a}^{l}\)</span> is a <span class="math inline">\(N_{l}\)</span> column vector. <span class="math inline">\(l=1,...,K\)</span> is an index of the layer, <span class="math inline">\(K\)</span> is the number of layers. The output of layer 0, corresponds to the input given to network, whereas the output of last K-th layer gives the output of the network: <span class="math inline">\(\hat{\mathbf{y}}_n \equiv \mathbf{o}^K\)</span>, <span class="math inline">\(\mathbf{o}^0 \equiv \mathbf{x}_n\)</span>.</p>
+<p>Component-wise: <span class="math display">\[a_i^l = \sum_{j=0}^{N_{l-1}} w_{ij}^l o_j^{l-1} = \sum_{j=1}^{N_{l-1}}w_{ij}^l o_j^{l-1} + b_i^l\]</span></p>
+<p>where <span class="math inline">\(a_i^l\)</span> is the activation of <span class="math inline">\(i\)</span>-th neuron in layer <span class="math inline">\(l\)</span>, <span class="math inline">\(o_j^l\)</span> is the output of <span class="math inline">\(j\)</span>-th neuron, <span class="math inline">\(b_i^l = w_{i0}^l\)</span> is bias (<span class="math inline">\(o_0^{l-1} \equiv 1\)</span>), <span class="math inline">\(\Theta = \{ w_{ij}^l\ \mid \ \text{for all }i,j,l \}\)</span>.</p>
+<p>We need to measure how bad is the approximation of <span class="math inline">\(f\)</span> given by <span class="math inline">\(NN\)</span>. For this, we define the loss function <span class="math inline">\(L^{\text{true}}(\Theta)\)</span>: <span class="math display">\[L^{\text{true}}(\Theta) = E_{\mathbf{x} \sim \mathcal{D}}[C(\hat{\mathbf{y}}(\mathbf{x}), f(\mathbf{x}))]\]</span></p>
+<p>Ideally, the parameters of the network (<span class="math inline">\(\Theta\)</span>) are chosen so that the loss is minimized:</p>
+<p><span class="math display">\[\Theta^{*} = \mathrm{argmin}_{\Theta} L^{\text{true}}(\Theta)\]</span></p>
+<p>Here <span class="math inline">\(C\)</span> is the cost function that measures how bad <span class="math inline">\(NN\)</span> performs for one point, e.g. <span class="math inline">\(C(\mathbf{z}, \mathbf{y})=\|\mathbf{z}-\mathbf{y}\|_2^2\)</span>.</p>
+<p>In practice, having finite data set <span class="math inline">\(X\)</span>, we approximate expectation with average:</p>
+<p><span class="math display">\[L^{\text{real}}(\Theta) \approx L(X, \Theta) = \frac{1}{N}\sum_{n=1}^{N}C(\hat{\mathbf{y}}(\mathbf{x}_n),\mathbf{y}_n)\]</span></p>
+<p>To evaluate if this approximation was reasonable, we compute empirical loss <span class="math inline">\(L(X_{\text{test}}, \Theta)\)</span> on another data set <span class="math inline">\(X_{\text{test}}\)</span> and make sure that it is not too large compared to <span class="math inline">\(L(X, \Theta)\)</span>.</p>
+<h2 id="searching-for-a-good-network">Searching for a good network</h2>
+<p>To minimize <span class="math inline">\(L\)</span>, gradient descent can be used, that is <span class="math inline">\(\Theta\)</span> is updated according to:</p>
+<p><span class="math display">\[\Theta_{t+1} = \Theta_t - \eta \nabla L(X, \Theta_t)\]</span> Here <span class="math inline">\(t\)</span> iteration of the algorithm, <span class="math inline">\(\eta\)</span> is learning rate, <span class="math inline">\(\nabla\)</span> denotes gradient operator.</p>
+<p>The computation of the gradient is often done with a numerical version of automatic differentiation so-called backpropagation (it has nothing to do with backpropagation of action potential in Neuroscience).</p>
+<p>Let’s derive components of <span class="math inline">\(\nabla L(X, \Theta_t)\)</span> for a layer <span class="math inline">\(l\)</span>.</p>
+<p><span class="math display">\[\frac{\partial L}{\partial w_{ij}^l} = \frac{1}{N} \sum_{n=1}^{N} \frac{\partial C(\hat{\mathbf{y}}(\mathbf{x}_n),\mathbf{y}_n)}{\partial w_{ij}^{l}}\]</span> Or in vectorized form:</p>
+<p><span class="math display">\[\mathbf{J}_L^l = \frac{1}{N}\sum_{n=1}^N \mathbf{J}_C^l(\hat{\mathbf{y}}(\mathbf{x}_n),\mathbf{y}_n)\]</span></p>
+<p>Cost function <span class="math inline">\(C\)</span> depends on <span class="math inline">\(\hat{\mathbf{y}}\)</span>, whereas each <span class="math inline">\(\hat{\mathbf{y}}\)</span> (or output of the last layer) depends on outputs of previous layers <span class="math inline">\(\mathbf{o}^{l'}\)</span> <span class="math inline">\(l`&lt;K\)</span>, whereas parameters corresponding to layer <span class="math inline">\(l\)</span> first appear in <span class="math inline">\(\mathbf{o}^l\)</span>:</p>
+<p><span class="math inline">\(C = C\left(\hat{\mathbf{y}}\left(\mathbf{o}^K(\mathbf{o}^l), \mathbf{o}^{K-1}(\mathbf{o}^l),...,\mathbf{o}^l\right)\right)\)</span> and <span class="math inline">\(\mathbf{o}^l = \mathbf{o}^l(\mathbf{w}^l)\)</span>.</p>
+<p>We can thus write:</p>
+<p><span class="math display">\[\frac{\partial C}{\partial w_{ij}^l} = \frac{\partial C}{\partial a_i^l} \frac{\partial a_i^l}{\partial w_{ij}^l} = \frac{\partial C}{\partial o_i^l} \frac{\partial o_i^l}{\partial a_i^l} \frac{\partial a_i^l}{\partial w_{ij}^l} = 
+\frac{\partial C}{\partial o_i^l} g_l'(a_i^l) o_j^{l-1} = \delta_i^l o_j^{l-1}
+\]</span></p>
+<p>We can define Jacobian for <span class="math inline">\(C\)</span> for each layer (<span class="math inline">\(J_{ij}^l = \frac{\partial C}{\partial w_{ij}^l}\)</span>) and rewrite this equation in vectorized form:</p>
+<p><span class="math display">\[\mathbf{J}^l = (\mathbf{\delta}^l) (\mathbf{o}^{l-1})^T\]</span></p>
+<p>Here <span class="math inline">\(\delta_i^l = \frac{\partial C}{\partial a_i^l}\)</span>. In this formula, we can easily compute all except <span class="math inline">\(\frac{\partial C}{\partial o_i^l}\)</span>. However, for the last layer <span class="math inline">\(l=K\)</span>, as <span class="math inline">\(o_i^K = \hat{y}_i\)</span>, we can compute: <span class="math display">\[\frac{\partial C}{\partial w_{ij}^K} = \frac{\partial C(\hat{\mathbf{y}}(\mathbf{x}),\mathbf{y})}{\partial \hat{y}_i} g_K'(a_i^K) o_j^{K-1},\]</span></p>
+<p>which in vectorized form would be:</p>
+<p><span class="math display">\[\mathbf{J}^K = (\nabla_{\hat{y}}C \odot g_K'(\mathbf{a}^K)) (\mathbf{o}^{K-1})^T.\]</span></p>
+<p>If we know <span class="math inline">\(\frac{\partial C}{\partial o_i^l}\)</span> and we can express <span class="math inline">\(\frac{\partial C}{\partial o_j^{l-1}}\)</span> as a function of <span class="math inline">\(\frac{\partial C}{\partial o_i^l}\)</span>. After this, we will be able to compute <span class="math inline">\(\frac{\partial C}{\partial w_{ij}^{l-1}}\)</span>. As we already know <span class="math inline">\(\frac{\partial C}{\partial w_{ij}^{l}} = \frac{\partial C(\hat{\mathbf{y}}(\mathbf{x}_n),\mathbf{y}_n)}{\partial \hat{y}_i}\)</span>, we can recursively compute all components of <span class="math inline">\(\nabla_{\Theta} C\)</span> going backwards in layers.</p>
+<p>Let’s find <span class="math inline">\(\frac{\partial C}{\partial o_{j}^{l-1}} \mapsto \frac{\partial C}{\partial o_{i}^{l}}\)</span>.</p>
+<p><span class="math display">\[C = C(\mathbf{o}^l(\mathbf{o}^{l-1}))\]</span></p>
+<p><span class="math display">\[\frac{\partial C}{\partial o_{j}^{l-1}} = \sum_{i=0}^{N_l} \frac{\partial C}{\partial o_{i}^{l}} \frac{\partial o_i^{l}}{\partial o_{j}^{l-1}} = \sum_{i=0}^{N_l} \frac{\partial C}{\partial o_{i}^{l}} g_l'(a_i^l) w_{ij}^l = \sum_{i=0}^{N_l} \delta_i^l w_{ij}^l\]</span></p>
+<p>We can rewrite in terms of <span class="math inline">\(\delta_i^l\)</span>:</p>
+<p><span class="math display">\[\delta_j^{l-1} = \frac{\partial C}{\partial o_{j}^{l-1}} g_{l-1}'(a_j^{l-1}) = \left(\sum_{i=0}^{N_l} \delta_i^l w_{ij}^l\right) g_{l-1}'(a_j^{l-1})\]</span></p>
+<p>In vectorized form:</p>
+<p><span class="math display">\[\mathbf{\delta}^{l-1} = \left( (\mathbf{w}^l)^T \mathbf{\delta}^l \right) \odot g_{l-1}'(\mathbf{a}^{l-1})\]</span></p>
+<p>Here <span class="math inline">\(\odot\)</span> is elementwise product.</p>
+<h1 id="algorithm">Algorithm</h1>
+<p>Forward pass for <span class="math inline">\((\mathbf{x}, \mathbf{y}) \in X\)</span> to compute activations and outputs:</p>
+<ul>
+<li>Set <span class="math inline">\(\mathbf{o}^0 = \mathbf{x}\)</span></li>
+<li>For <span class="math inline">\(l=1,...,K\)</span>:
+<ul>
+<li><span class="math inline">\(\mathbf{a}^l = \mathbf{w}^l\mathbf{o}^{l-1}\)</span></li>
+<li><span class="math inline">\(\mathbf{o}^l = g_l(\mathbf{a}^{l})\)</span></li>
+</ul></li>
+</ul>
+<p>Backpropagation to compute gradient of the loss function:</p>
+<ul>
+<li>Take <span class="math inline">\(A \subseteq X\)</span></li>
+<li>For each <span class="math inline">\((\mathbf{x}_n, \mathbf{y}_n) \in A\)</span>:
+<ul>
+<li>do forward pass to compute all <span class="math inline">\(g_l(\mathbf{a}^l)\)</span></li>
+<li>compute <span class="math inline">\(\mathbf{\delta^K} = \nabla_{\hat{y}}C \odot g_K'(\mathbf{a}^K)\)</span></li>
+<li>compute <span class="math inline">\(\mathbf{J}^K = (\mathbf{\delta}^K) (\mathbf{o}^{K-1})^T\)</span></li>
+<li>For <span class="math inline">\(l=K,K-1,...,2\)</span>
+<ul>
+<li><span class="math inline">\(\mathbf{\delta}^{l-1} = \left( (\mathbf{w}^l)^T \mathbf{\delta}^l \right) \odot g_{l-1}'(\mathbf{a}^{l-1})\)</span></li>
+<li>compute <span class="math inline">\(\mathbf{J}^{l-1} = (\mathbf{\delta}^{l-1}) (\mathbf{o}^{l-2})^T\)</span></li>
+</ul></li>
+</ul></li>
+<li>Compute <span class="math inline">\(\mathbf{J}_L^l = \frac{1}{|A|}\sum_{n=1}^{|A|} \mathbf{J}_C^l(\hat{\mathbf{y}}(\mathbf{x}_n),\mathbf{y}_n)\)</span> for all <span class="math inline">\(l\)</span></li>
+</ul>
+<p>Stochastic gradient descent:</p>
+<ul>
+<li>For <span class="math inline">\(t=1,...,T\)</span> do
+<ul>
+<li>Select randomly <span class="math inline">\(A \subset X\)</span></li>
+<li>Do backpropagation for <span class="math inline">\(A\)</span> to compute gradient <span class="math inline">\(\mathbf{J}_L^l\)</span></li>
+<li>For each <span class="math inline">\(l=1,...,K\)</span> do
+<ul>
+<li><span class="math inline">\(\mathbf{w}^l_t = \mathbf{w}^l_{t-1} - \eta \mathbf{J}_L^l\)</span></li>
+</ul></li>
+</ul></li>
+</ul>
+<h1 id="getting-hands-dirty-with-python-and-numpy">Getting hands dirty with python and NumPy</h1>
+<p>First, I defined some useful general functions.</p>
+<pre><code class="language-python">
+```python
+import numpy as np
+from copy import deepcopy
+from functools import partial
+import matplotlib.pyplot as plt
+
+
+def sigmoid(x, derivative=False):
+    s = 1.0 / (1.0 + np.exp(-x))
+    if derivative:
+        return s * (1.0 - s)
+    else:
+        return s
+sigmoid.name = 'sigmoid'
+
+
+def updated(d, dupdate):
+    d = deepcopy(d)
+    d.update(dupdate)
+    return d
+
+def shuffled(x):
+    x = deepcopy(x)
+    np.random.shuffle(x)
+    return x
+
+
+def dataToBatches(data, batch_size):
+    lenData = len(data)
+    ilast = lenData // batch_size
+    start = 0
+    while start < lenData-1:
+        stop = min(lenData, start + batch_size)
+        yield data[start:stop]
+        start += batch_size
+
+
+def grad_l2_cost(y, target):
+    return (target-y)
+
+def l2_cost(nn, datapoint):
+    image, label_one_hot = datapoint
+    return np.mean((nn.forward(image)-label_one_hot)**2)
+
+def lossData(nn, data):
+    return np.mean(list(map(partial(l2_cost, nn), data)))
+
+def accuracy(nn, data):
+    return np.mean(
+        [ np.argmax(nn.forward(d[0])) == np.argmax(d[1])
+          for d in data
+        ])
+
+def one_hot_mnist(label):
+    x = np.zeros(10)
+    x[label] = 1.0
+    return x
+```
+</code></pre>
+<p>Let’s define neural network class.</p>
+<pre><code class="language-python">
+```python
+class Layer():
+    def __init__(self, parameters):
+        self.W = parameters['init_weights'](
+                parameters['n_out'],
+                parameters['n_in'])
+        self.b = parameters['init_biases'](
+                parameters['n_out'])
+        self.Wb = np.hstack([self.b[:, np.newaxis], self.W])
+        self.act_func = parameters['act_func']
+        self.dact_func = parameters['dact_func']
+        self.dactivation = None # to keep track of its activation
+        self.output = None
+    def forward(self, inp):
+        inp = np.insert(inp, 0, 1.0)
+        activation = np.matmul(self.Wb, inp)
+        self.dactivation = self.dact_func(activation)
+        output = self.act_func(activation)
+        self.output = np.insert(output, 0, 1)
+        return output
+    def setLast(self):
+        for attr in ['output']:
+            setattr(self,
+                    attr,
+                    getattr(self, attr)[:-1])
+
+    def __repr__(self):
+        return "(Input, Output) size: {}".format(self.W.shape[::-1]) + "\n" +\
+               "Activation: {}".format(self.act_func.name) + "\n"
+
+class Network():
+    def __init__(self, layers_pars, grad_cost):
+        self.layers = [Layer(par) for par in layers_pars]
+        self.grad_cost = grad_cost
+    def forward(self, inp):
+        out = inp
+        for l in self.layers:
+            out = l.forward(out)
+        l.setLast()
+        return out
+    def __repr__(self):
+        desc = ''
+        for i, l in enumerate(self.layers):
+            desc += "Layer {}\n".format(i)
+            desc += repr(l) + "\n"
+        return desc
+    def describe(self):
+        print(repr(self))
+
+    def gradient(self, data):
+        sum_Jls = np.zeros(len(self.layers))
+        lenData = 0
+        for x, y in data:
+            lenData += 1
+            output = self.forward(x)
+
+            delta = self.grad_cost(y, output)\
+                    * self.layers[-1].dactivation
+            delta = delta[:, np.newaxis]
+
+            Jl  = np.matmul(delta,
+                            self.layers[-2].output[np.newaxis, :])
+            Jls = [Jl]
+
+            for l in range(len(self.layers)-1, 0, -1):
+
+                q1 = np.matmul(self.layers[l].Wb.T, delta)
+                q2 = self.layers[l-1].dactivation[:, np.newaxis]
+                delta = q1[1:] * q2
+
+                outprev = \
+                        self.layers[l-2].output[np.newaxis, :]\
+                        if l-2 > -1 else\
+                        np.insert(x, 0, 1)[np.newaxis]
+                Jl  = np.matmul(delta, outprev)
+                Jls.append(Jl)
+            sum_Jls = [ old+Jl for old,Jl in zip(sum_Jls, Jls) ]
+        mean_Jls = [ old / lenData for old in sum_Jls ]
+        # correct for reversion as a result of backward computation
+        mean_Jls = mean_Jls[::-1]
+        return mean_Jls
+
+    def SGD(self, data,
+            batch_size=100,
+            max_iter=None,
+            learning_rate=0.01):
+        if max_iter is None:
+            max_iter = len(data)
+        dataS = shuffled(data)
+        for i, batch in enumerate(
+                dataToBatches(dataS,
+                              batch_size=batch_size)):
+            if i > max_iter:
+                break
+            Jls = self.gradient(batch)
+            for l in range(len(self.layers)):
+                self.layers[l].Wb -= learning_rate * Jls[l]
+```
+</code></pre>
+<p>Let’s make a simple network where <span class="math inline">\(g_l(x) = 1/(1+e^{-x})\)</span> is the same for all layers, load MNIST data and train network to classify digits.</p>
+<pre><code class="language-python">
+```python
+def mkSimpleNetwork(ns_per_layer):
+        parameters =\
+            { 'init_weights': np.random.randn
+            , 'init_biases' : np.random.randn
+            , 'act_func'    : sigmoid
+            , 'dact_func'   : partial(sigmoid, derivative=True)
+            }
+        layers_pars = []
+        for n_in, n_out in zip(ns_per_layer[:-1],
+                               ns_per_layer[1:]):
+            layers_pars.append(
+                updated(parameters,
+                        { 'n_in'  : n_in
+                        , 'n_out' : n_out
+                        }))
+        return Network(layers_pars, grad_l2_cost)
+
+
+def getData(
+        mnist_tuple,
+        subset=30000,
+        shuffle=True
+        ):
+    images, labels = mnist_tuple
+    # Sequence X
+    data = list(
+            zip(images,
+                list(map(one_hot_mnist, labels))))
+    if shuffle:
+        data = shuffled(data)
+    if subset:
+        data = data[:subset]
+    return data
+
+
+def scaleData(data, scaler=lambda x: np.array(x)/255.0):
+    return [(scaler(img), lbl) for img, lbl in data]
+
+# helpers that are needed later on (skip them for now).
+
+def extend_Wbls(nn, Wbls):
+    for i, l in enumerate(nn.layers):
+        Wbls[i] = np.vstack([Wbls[i], l.Wb.flatten()])
+
+def plot_save(nn, loss, accs, Wbls, fpath='nnTrain.png'):
+    fig, axs = plt.subplots(
+            2+len(nn.layers), 1,
+            figsize=(6, 6))
+    for k in loss.keys():
+        axs[0].semilogy(loss[k], label=k)
+        axs[1].plot(accs[k], label=k)
+    axs[0].set_ylabel('loss')
+    axs[0].legend()
+    axs[1].set_ylabel('accuracy')
+    axs[1].legend()
+    for i in range(len(nn.layers)):
+        ax = axs[2+i]
+        c = ax.pcolor(Wbls[i].T, cmap='RdBu_r')
+        ax.set_ylabel("$\mathbf{w}^%i$" % (i+1))
+        fig.colorbar(c, ax=ax)
+    plt.tight_layout()
+    fig.savefig(fpath)
+    plt.close()
+
+
+if __name__ == '__main__':
+
+    # Load and preprocess MNIST data
+
+    from mnist import MNIST
+    mndata = MNIST('/home/ilya/Downloads/MNIST/')
+
+    d = {}
+    d['train'] = scaleData(getData(
+            mndata.load_training()))
+    d['test']  = scaleData(getData(
+            mndata.load_testing()))
+
+    # Create simple network with two layers
+
+    nn = mkSimpleNetwork([784, 50, 10])
+
+    # initialize measurables
+
+    loss  = {k:[lossData(nn, v)] for k, v in d.items()}
+    accs  = {k:[accuracy(nn, v)] for k, v in d.items()}
+    Wbls  = [l.Wb.flatten() for l in nn.layers]
+
+    # training loop
+
+    for n_epoch in range(30):
+        nn.SGD(d['train'],
+               max_iter=None,
+               batch_size=8,
+               learning_rate=3.0)
+        # compute measures and plot results
+        for k in d.keys():
+            loss[k].append(lossData(nn, d[k]))
+            accs[k].append(accuracy(nn, d[k]))
+        extend_Wbls(nn, Wbls)
+        plot_save(nn, loss, accs, Wbls)
+        print("Epoch {}: loss: {} acc: {}".format(
+                n_epoch,
+                loss['test'][-1],
+                accs['test'][-1]))
+```
+</code></pre>
+<h1 id="results">Results</h1>
+<div class="figure">
+<img src="../images/learning-mnist/nnTrain.png" style="width:100.0%" />
+
+</div>
+<pre><code>Epoch 0: loss: 0.016991653848590874 acc: 0.8966
+Epoch 1: loss: 0.013715554862541645 acc: 0.9196
+Epoch 2: loss: 0.012228999662532923 acc: 0.9269
+Epoch 3: loss: 0.010847338415188106 acc: 0.9385
+Epoch 4: loss: 0.01038737127915931 acc: 0.939
+Epoch 5: loss: 0.009598660621545196 acc: 0.9442
+Epoch 6: loss: 0.009858286550737687 acc: 0.9443
+Epoch 7: loss: 0.009359748620839778 acc: 0.9457
+Epoch 8: loss: 0.009088295631916992 acc: 0.95
+Epoch 9: loss: 0.008745593652667713 acc: 0.9492
+Epoch 10: loss: 0.008550893034509434 acc: 0.9521
+Epoch 11: loss: 0.008339602288365305 acc: 0.9513
+Epoch 12: loss: 0.00834561132452328 acc: 0.9515
+Epoch 13: loss: 0.008456136266077822 acc: 0.9532
+Epoch 14: loss: 0.008365949090187232 acc: 0.9525
+Epoch 15: loss: 0.008197821605744322 acc: 0.9549
+Epoch 16: loss: 0.008246864203031709 acc: 0.9536
+Epoch 17: loss: 0.008465551030755258 acc: 0.9525
+Epoch 18: loss: 0.008124560552781017 acc: 0.9541
+Epoch 19: loss: 0.008889806361243542 acc: 0.9508
+Epoch 20: loss: 0.008222358936366456 acc: 0.9528
+Epoch 21: loss: 0.008115327748820329 acc: 0.9549
+Epoch 22: loss: 0.008307595954575276 acc: 0.9539
+Epoch 23: loss: 0.008410497112609237 acc: 0.9531
+Epoch 24: loss: 0.008138048542561003 acc: 0.9532
+Epoch 25: loss: 0.008175355271420938 acc: 0.9527
+Epoch 26: loss: 0.008317691955677251 acc: 0.9531
+Epoch 27: loss: 0.008137449156834158 acc: 0.9556
+Epoch 28: loss: 0.008301935092177169 acc: 0.9554
+Epoch 29: loss: 0.008204441135138874 acc: 0.9545</code></pre>
+<h1 id="references">References</h1>
+<ul>
+<li><a href="http://neuralnetworksanddeeplearning.com/" class="uri">http://neuralnetworksanddeeplearning.com/</a></li>
+<li><a href="https://shapeofdata.wordpress.com/2013/06/11/neural-networks-1-the-neuron/" class="uri">https://shapeofdata.wordpress.com/2013/06/11/neural-networks-1-the-neuron/</a></li>
+<li><a href="http://deeplearningbook.org/" class="uri">http://deeplearningbook.org/</a></li>
+<li><a href="https://stats385.github.io/" class="uri">https://stats385.github.io/</a></li>
+<li><a href="http://cs229.stanford.edu/" class="uri">http://cs229.stanford.edu/</a></li>
+<li><a href="http://cs231n.github.io/" class="uri">http://cs231n.github.io/</a></li>
+</ul>
+    </section>
+    <div id="disqus_thread"></div>
+</article>
+
+        </main>
+
+        <footer>
+            Site proudly generated by
+            <a href="http://jaspervdj.be/hakyll">Hakyll</a>
+        </footer>
+    </body>
+</html>
