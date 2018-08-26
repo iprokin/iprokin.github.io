@@ -52,29 +52,40 @@ import matplotlib.pylab as plt
 # Define data generating process
 phi = np.linspace(0, 6*2*np.pi, 500)
 r = 10
-x = r * np.cos(phi) 
-y = r * np.sin(phi)
+x = r*np.cos(phi) 
+y = r*np.sin(phi)
 
 for name, reducer in [ ('PCA' , PCA())
                      , ('UMAP', UMAP())
                      , ('TSNE', TSNE())
                      ]:
-    
+
+    # Make design matrix, simulate noisy measurement of the process above. with x first, y last
+    X = np.vstack([x + np.random.randn(len(x))] + \
+                  [y + np.random.randn(len(y))]).T
+
     _, axs = plt.subplots(1, 2, figsize=(4*2, 4))
-    # Make design matrix, simulate noisy measurement of the process above
-    X = np.vstack([x + np.random.randn(len(x))] + [y + np.random.randn(len(x))]).T
+
     axs[0].scatter(X[:, 0], X[:, -1])
 
     for n_x in [1, 10, 100]:
         if n_x > 1:
-            X_with_corr = np.hstack([X, np.vstack([x + np.random.randn(len(x)) for _ in range(n_x-1)]).T])
+            X_with_corr = np.hstack(
+                [ np.vstack(
+                    [ x + np.random.randn(len(x))
+                      for _ in range(n_x-1)
+                    ]).T
+                , X
+                ])
         else:
             X_with_corr = X
 
         X_tr = reducer.fit_transform(X_with_corr)
 
-        axs[1].scatter(X_tr[:, 0], X_tr[:, -1], label="n_x={}".format(n_x))
+        axs[1].scatter(X_tr[:, 0], X_tr[:, -1],
+                       label="n_x={}".format(n_x))
         axs[1].legend()
+
     axs[0].set_title(name)
 ```
 </code></pre>
