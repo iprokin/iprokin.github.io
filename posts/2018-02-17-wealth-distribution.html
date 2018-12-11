@@ -59,7 +59,7 @@
 <p>Is it possible that the distribution of wealth (assumed power-law) is a consequence of the distribution of talent (assumed normal)? If so, what should be the mapping <span class="math inline">\(f\)</span>, between talent <span class="math inline">\(x\)</span>, and wealth <span class="math inline">\(y\)</span>.</p>
 <p>Consider two random variables:</p>
 <p><span class="math inline">\(X\)</span> is the talent, <span class="math inline">\(Y\)</span> is the wealth.</p>
-<p>Assuming <span class="math inline">\(X \sim \mathcal{N}(\mu, \sigma)\)</span>, <span class="math inline">\(Y \sim \mathrm{Power}(y_{\text{min}}, \alpha)\)</span> find <span class="math inline">\(f:\mathbb{R} \to [y_{\text{min},+\infty})\)</span>, <span class="math inline">\(Y=f(X)\)</span>.</p>
+<p>Assuming <span class="math inline">\(X \sim \mathcal{N}(\mu, \sigma)\)</span>, <span class="math inline">\(Y \sim \mathrm{Power}(y_{\text{min}}, \alpha)\)</span> find <span class="math inline">\(f:\mathbb{R} \to [y_{\text{min}},+\infty)\)</span>, <span class="math inline">\(Y=f(X)\)</span>.</p>
 <p><span class="math inline">\(f\)</span> is assumed continuous, so: <span class="math display">\[P(x&lt;X&lt;x+dx) = P(y&lt;Y&lt;y+dy)\]</span> <span class="math display">\[f_X(x&lt;X&lt;x+dx)dx = f_Y(y&lt;Y&lt;y+dy)dy\]</span></p>
 <p>Integrating both sides from <span class="math inline">\(-\infty\)</span> to x we get normal CDF (<span class="math inline">\(\Phi\)</span>) on the left:</p>
 <p><span class="math display">\[\Phi(x; \mu, \sigma) = \int_{f(-\infty)}^{f(x)}\frac{\alpha-1}{y_{\text{min}}^{-\alpha+1}}y^{-\alpha}dy\]</span></p>
